@@ -3,7 +3,7 @@
 #include "GameBoard.h"
 #include "AIBlackboard_GlobalTTT.h"
 #include "AIRandom_Global.h"
-
+#include <cmath>
 
 // general functions
 
@@ -62,21 +62,43 @@ TicTacToeNode* TicTacToeNode::Select()
 		return this;
 	}
 
-	if (isEndState )
+	if (isEndState)
 	{
 		// leaf node, return and will be handled by Reasoner
 		return this;
 	}
 
+	// UCT selection: pick the child with the highest UCT score
+	const float c = 1.41f;   // exploration parameter (about sqrt(2))
 
-	// TASK TODO - replace below below code with UCT based selection
-	//  - remember to call 'Select()' on the node 
+	TicTacToeNode* bestChild = nullptr;
+	float bestUCT = -1.0f;
 
-	int randomBranch = rand() % branches.size();
-	return branches[randomBranch]->Select();
+	for (TicTacToeNode* child : branches)
+	{
+		float uct;
 
-	
+		if (child->getVisits() == 0)
+		{
+			// never visited, so explore it first
+			uct = 1000000.0f;
+		}
+		else
+		{
+			float exploitation = (float)child->getWins() / child->getVisits();
+			float exploration = c * sqrt(log((float)visits) / child->getVisits());
+			uct = exploitation + exploration;
+		}
 
+		if (uct > bestUCT)
+		{
+			bestUCT = uct;
+			bestChild = child;
+		}
+	}
+
+	// recurse down the chosen branch
+	return bestChild->Select();
 
 }
 
@@ -126,14 +148,14 @@ TicTacToeNode* TicTacToeNode::Expand()
 	}
 
 }
-#/*
+
+/*
 * Simulate  - will perform the Simulate step of the MCTS algorithm
 * will play random moves until a end state is found, and set the simulationWinner
 */
 void TicTacToeNode::Simulate(BOARD_SQUARE_STATE startingTurn)
 {
-
-
+	// make a copy of the game state, so the real node is not changed
 	GameState simState = getGameState();
 
 	// set the active player
@@ -178,14 +200,6 @@ void TicTacToeNode::Simulate(BOARD_SQUARE_STATE startingTurn)
 		// otherwise the other player moves next
 		currentPlayer = getOppositeMove(currentPlayer);
 	}
-
-
-
-
-
-	
-
-
 }
 
 
@@ -237,8 +251,6 @@ void TicTacToeNode::Backpropagate(int result)
 	{
 		parent->Backpropagate(result);
 	}
-
-
 
 }
 
@@ -308,7 +320,7 @@ TicTacToeNode* TicTacToeNode::FindHighestRankingChild()
 	return branches[maxIndex];
 }
 
-#/*
+/*
 * resetNode will return the node to its default values
 */
 
