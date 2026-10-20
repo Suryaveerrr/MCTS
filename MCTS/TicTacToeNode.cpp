@@ -71,6 +71,8 @@ TicTacToeNode* TicTacToeNode::Select()
 	// UCT selection: pick the child with the highest UCT score
 	const float c = 1.41f;   // exploration parameter (about sqrt(2))
 
+	BOARD_SQUARE_STATE aiMarker = (BOARD_SQUARE_STATE)AIBlackboard_GlobalTTT::getInstance()->GetValue<int>("AIMarker");
+
 	TicTacToeNode* bestChild = nullptr;
 	float bestUCT = -1.0f;
 
@@ -85,7 +87,12 @@ TicTacToeNode* TicTacToeNode::Select()
 		}
 		else
 		{
-			float exploitation = (float)child->getWins() / child->getVisits();
+			float winRate = (float)child->getWins() / child->getVisits();
+
+			// moves made by the AI: a higher AI win rate is better
+			// moves made by the human: a lower AI win rate is better for the human
+			float exploitation = (child->getActivePlayer() == aiMarker) ? winRate : 1.0f - winRate;
+
 			float exploration = c * sqrt(log((float)visits) / child->getVisits());
 			uct = exploitation + exploration;
 		}
