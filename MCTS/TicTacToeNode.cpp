@@ -239,13 +239,20 @@ void TicTacToeNode::CalcResult()
 void TicTacToeNode::Backpropagate(int result)
 {
 
-	//TASK TODO
+	// increment visits (every call)
+	visits++;
 
-	// incerement visits
-	// increment wins
+	// increment wins only when the AI won the simulation (result 1)
+	if (result == 1)
+	{
+		wins++;
+	}
 
-	// if the node has a parent, call parent->Backpropagate with the results
-	// the node will be NULL if there is no parment
+	// pass the result up the tree; the root has no parent, so parent is nullptr
+	if (parent != nullptr)
+	{
+		parent->Backpropagate(result);
+	}
 
 
 
