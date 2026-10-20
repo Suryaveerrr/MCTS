@@ -181,9 +181,38 @@ void TicTacToeNode::Simulate(BOARD_SQUARE_STATE startingTurn)
 			return;
 		}
 
-		// randomly select one possible move
-		int randomIndex = rand() % moves.size();
-		std::pair<int, int> move = moves[randomIndex];
+		// default: a random move
+		std::pair<int, int> move = moves[rand() % moves.size()];
+		bool moveFound = false;
+
+		// heuristic 1: take a winning move if there is one
+		for (const auto& m : moves)
+		{
+			GameState testState = simState;
+			testState.SetAndApplyAction(GameAction(m.first, m.second, currentPlayer));
+			if (testState.CheckWin() == currentPlayer)
+			{
+				move = m;
+				moveFound = true;
+				break;
+			}
+		}
+
+		// heuristic 2: otherwise block the opponent's winning move
+		if (!moveFound)
+		{
+			BOARD_SQUARE_STATE opponent = getOppositeMove(currentPlayer);
+			for (const auto& m : moves)
+			{
+				GameState testState = simState;
+				testState.SetAndApplyAction(GameAction(m.first, m.second, opponent));
+				if (testState.CheckWin() == opponent)
+				{
+					move = m;
+					break;
+				}
+			}
+		}
 
 		// apply the move to the game state
 		GameAction action(move.first, move.second, currentPlayer);
