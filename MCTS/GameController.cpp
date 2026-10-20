@@ -4,6 +4,8 @@
 #include <sstream>
 #include <string>
 #include <chrono>
+#include <fstream>
+#include <ctime>
 
 GameController::GameController()
 {
@@ -125,10 +127,10 @@ void GameController::Update(float dt)
         }
         else if (turnState == TurnState::AITakingTurn)
         {
-           AITurn();
+            AITurn();
         }
 
-      
+
     }
 }
 
@@ -156,21 +158,62 @@ char GameController::GetCharForState(BOARD_SQUARE_STATE printState)
 
 bool GameController::CheckWin()
 {
-   BOARD_SQUARE_STATE _winner =  mainGameState.CheckWin();
+    BOARD_SQUARE_STATE _winner = mainGameState.CheckWin();
 
-   if (_winner != BOARD_SQUARE_STATE::NONE)
-   {
-      std::cout << "Winner - " << _winner << std::endl;
-      std::string _winnerText = "Winner - ";
+    // number of moves played so far on the board
+    int _turnsTaken = 9 - (int)mainGameState.GetPossibleMoves().size();
 
-      _winnerText.push_back(GetCharForState(_winner));
-      UpdateStatusText(_winnerText);
-      StopGame();
-      return true;
-   }
+    // appends one line per finished game to a CSV log file (Task 11)
+    auto _logResult = [&](const std::string& _result)
+        {
+            std::ofstream _log("mcts_results.csv", std::ios::app);
+
+            // write a header if the file is new/empty
+            if (_log.tellp() == 0)
+            {
+                _log << "time,result,ai_marker,turns_taken,max_runs" << std::endl;
+            }
+
+            std::time_t _now = std::time(nullptr);
+            std::tm _tm;
+            localtime_s(&_tm, &_now);
+            char _timeBuf[32];
+            std::strftime(_timeBuf, sizeof(_timeBuf), "%Y-%m-%d %H:%M:%S", &_tm);
+
+            _log << _timeBuf << ","
+                << _result << ","
+                << GetCharForState(aiMarker) << ","
+                << _turnsTaken << ","
+                << maxRuns << std::endl;
+        };
+
+    if (_winner != BOARD_SQUARE_STATE::NONE)
+    {
+        std::cout << "Winner - " << _winner << std::endl;
+        std::string _winnerText = "Winner - ";
+
+        _winnerText.push_back(GetCharForState(_winner));
+        UpdateStatusText(_winnerText);
+
+        _logResult(_winner == aiMarker ? "AI Win" : "Player Win");
+
+        StopGame();
+        return true;
+    }
+
+    // no winner and no empty squares left, so the game is a draw
+    if (mainGameState.GetPossibleMoves().size() == 0)
+    {
+        UpdateStatusText("Draw");
+
+        _logResult("Draw");
+
+        StopGame();
+        return true;
+    }
 
 
-   return false;
+    return false;
 }
 
 
@@ -200,9 +243,9 @@ void GameController::HandleMousePress(const sf::Event::MouseButtonPressed* _mous
     else if (_mousePress->button == sf::Mouse::Button::Left)
     {
 
-        if (turnState ==TurnState::Waiting)
+        if (turnState == TurnState::Waiting)
         {
-        
+
             int gridRow = ConvertScreenPosToGridPos(_mousePress->position.y);
             int gridCol = ConvertScreenPosToGridPos(_mousePress->position.x);
 
@@ -265,7 +308,7 @@ void GameController::DisplayUI(sf::RenderWindow& window)
 
     std::string _aiMark = "AI Marker : ";
     _aiMark.push_back(GetCharForState(aiMarker));
-    
+
     std::string _humanMark = "Human Marker : ";
     _humanMark.push_back(GetCharForState(playerMarker));
 
@@ -274,7 +317,7 @@ void GameController::DisplayUI(sf::RenderWindow& window)
 
 
     DisplayMCTSNodes(window);
-    
+
 
 }
 
@@ -284,14 +327,14 @@ void GameController::DisplayMCTSNodes(sf::RenderWindow& window)
 
     if (!Global_Blackboard->HasValue<std::vector<int>>("AINodeVisits"))
         return;
-       
+
     std::vector <int> _nodeVisits = Global_Blackboard->GetValue< std::vector<int>>("AINodeVisits");
 
     std::vector <int> _nodeWins = Global_Blackboard->GetValue<std::vector<int>>("AINodeWins");
     std::vector <int> _nodeActionRow = Global_Blackboard->GetValue<std::vector<int>>("AINodeRow");
     std::vector <int> _nodeActionCol = Global_Blackboard->GetValue<std::vector<int>>("AINodeCol");
 
-    AIMath_Global::Vector2f _aiMove= Global_Blackboard->GetValue<AIMath_Global::Vector2f>("AIMove");
+    AIMath_Global::Vector2f _aiMove = Global_Blackboard->GetValue<AIMath_Global::Vector2f>("AIMove");
 
     float yPos = 50.f;
 
@@ -300,15 +343,15 @@ void GameController::DisplayMCTSNodes(sf::RenderWindow& window)
     for (int i = 0; i < _nodeActionCol.size(); i++)
     {
         std::ostringstream os;
-        
+
 
         os.setf(std::ios::fixed);
         os.precision(2);
-            
+
         float _winPercent = 0.f;
-        
-        if(_nodeVisits[i]!=0)
-            _winPercent =  (float) (_nodeWins[i] ) / _nodeVisits[i];
+
+        if (_nodeVisits[i] != 0)
+            _winPercent = (float)(_nodeWins[i]) / _nodeVisits[i];
 
         std::string wp = std::format("{:.2f}", _winPercent);
 
@@ -317,7 +360,7 @@ void GameController::DisplayMCTSNodes(sf::RenderWindow& window)
 
         if (_nodeActionRow[i] == _aiMove.y && _nodeActionCol[i] == _aiMove.x)
         {
-            os << "\t**SELECT**" <<std::endl;
+            os << "\t**SELECT**" << std::endl;
         }
         else
         {
@@ -325,7 +368,7 @@ void GameController::DisplayMCTSNodes(sf::RenderWindow& window)
         }
 
 
-        DisplayUIText(window, os.str(), 800, 300+(yPos * (i+1)));
+        DisplayUIText(window, os.str(), 800, 300 + (yPos * (i + 1)));
     }
 
 }
@@ -389,8 +432,8 @@ void GameController::DrawMarkers(sf::RenderWindow& window)
     {
         for (int row = 0; row < mapHeight; row++)
         {
-            
-            if (mainGameState.gameBoard.GetBoardSquare(row,col) == BOARD_SQUARE_STATE::CIRCLE) {
+
+            if (mainGameState.gameBoard.GetBoardSquare(row, col) == BOARD_SQUARE_STATE::CIRCLE) {
                 sf::Sprite _s(oMarkerTexture);
                 _s.setPosition({ col * mapSectionXY, row * mapSectionXY });
                 window.draw(_s);
@@ -403,7 +446,7 @@ void GameController::DrawMarkers(sf::RenderWindow& window)
                     window.draw(_s);
                 }
             }
-          
+
         }
     }
 }
@@ -437,7 +480,7 @@ void GameController::StartGame()
 
     gameRunning = true;
 
-    if (markerTurn==aiMarker)
+    if (markerTurn == aiMarker)
     {
         turnState = TurnState::AITakingTurn;
     }
@@ -447,8 +490,8 @@ void GameController::StartGame()
     }
 
 
-    
-   
+
+
 }
 
 /*
@@ -467,7 +510,7 @@ void GameController::SetupGame()
     if (_starter == StartingPlayer::Random)
     {
         float _turn = Global_Random->GetRandom01();
-   
+
         if (_turn >= 0.5f)
         {
             _starter = StartingPlayer::AI;
@@ -482,13 +525,13 @@ void GameController::SetupGame()
     {
         _startMessage.append("AI");
         markerTurn = aiMarker;
-   
+
     }
     else  if (_starter == StartingPlayer::Human)
     {
         _startMessage.append("Human");
         markerTurn = playerMarker;
- 
+
     }
 
     UpdateStatusText(_startMessage);
@@ -533,7 +576,7 @@ void GameController::NextTurn()
 
     if (!winner)
     {
-    
+
         markerTurn = GetOppositeMarker(markerTurn);
 
         if (markerTurn == aiMarker)
@@ -565,7 +608,7 @@ void GameController::UpdateBlackboardState()
 bool GameController::isValidMove(int _row, int _col)
 {
 
-    if (mainGameState.gameBoard.GetBoardSquare(_row,_col) == BOARD_SQUARE_STATE::NONE)
+    if (mainGameState.gameBoard.GetBoardSquare(_row, _col) == BOARD_SQUARE_STATE::NONE)
     {
         return true;
     }
@@ -578,9 +621,9 @@ bool GameController::isValidMove(int _row, int _col)
 
 
 /*
-* MakeMove will update the game board with the provided row/col. The move should be a valid one, checked by isValidMove(). 
+* MakeMove will update the game board with the provided row/col. The move should be a valid one, checked by isValidMove().
 */
-void GameController::MakeMove(int _row, int _col) 
+void GameController::MakeMove(int _row, int _col)
 {
     mainGameState.SetAndApplyAction(GameAction(_row, _col, markerTurn));
 
@@ -589,7 +632,7 @@ void GameController::MakeMove(int _row, int _col)
     _p.push_back(GetCharForState(markerTurn));
 
     os << _p << " Move => Row:" << _row << " Col:" << _col << std::endl;
-    
+
     std::string _s = os.str();
     UpdateStatusText(_s);
 
