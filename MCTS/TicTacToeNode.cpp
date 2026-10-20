@@ -134,66 +134,50 @@ void TicTacToeNode::Simulate(BOARD_SQUARE_STATE startingTurn)
 {
 
 
-	// TODO - This code will randomly pick a winner - replace this code with your own simulation code
-	if (AIRandom_Global::getInstance()->GetRandom01() >= 0.5f)
+	GameState simState = getGameState();
+
+	// set the active player
+	BOARD_SQUARE_STATE currentPlayer = getOppositeMove(startingTurn);
+
+	// if the state already has a winner, record it and stop
+	BOARD_SQUARE_STATE winner = simState.CheckWin();
+	if (winner != BOARD_SQUARE_STATE::NONE)
 	{
-		simulationWinner = BOARD_SQUARE_STATE::CIRCLE;
+		simulationWinner = winner;
+		return;
 	}
-	else
+
+	while (true)
 	{
-		simulationWinner = BOARD_SQUARE_STATE::CROSS;
+		// get all possible moves
+		std::vector<std::pair<int, int>> moves = simState.GetPossibleMoves();
+
+		// no moves left and no winner, so it is a draw
+		if (moves.size() == 0)
+		{
+			simulationWinner = BOARD_SQUARE_STATE::NONE;
+			return;
+		}
+
+		// randomly select one possible move
+		int randomIndex = rand() % moves.size();
+		std::pair<int, int> move = moves[randomIndex];
+
+		// apply the move to the game state
+		GameAction action(move.first, move.second, currentPlayer);
+		simState.SetAndApplyAction(action);
+
+		// check if that move won the game
+		winner = simState.CheckWin();
+		if (winner != BOARD_SQUARE_STATE::NONE)
+		{
+			simulationWinner = winner;
+			return;
+		}
+
+		// otherwise the other player moves next
+		currentPlayer = getOppositeMove(currentPlayer);
 	}
-
-	
-
-	//TASK TODO - replace above code with the simulation functionality
-	// - ensure you set 'simulationWinner' in this function
-	// 
-	// # PSEUDOCODE
-	// 
-	//	Make copy of Game State (Note 0)
-	//	Set active player (Note 1) 
-	//	IF game state has current winner:  (Note 2)
-	//		SET simulationWinner
-	//		RETURN
-	//	
-	//	WHILE game state NOT has winner :
-	//		Get all possible Moves (Note 3)
-	//			IF no possible move
-	//				Game is draw, SET simulationWinner
-	//				RETURN
-	//			ELSE
-	//				Randomly select one possible move
-	//				Apply Move to Game State (Note 4)
-	//				Clear possible moves
-	//				Use CheckWin() see game state has a current winner
-	//					IF game state has current winner:
-	//						SET simulationWinner
-	//						RETURN
-	//					ELSE
-	//						Set active player for next turn (Note 5)
-	// 
-	
-
-	// Note 0: see function getGameState()
-	// Note 1: function parameter 'startingTurn' will contain the starting player
-	// Note 2: see function CheckWin() 
-	// Note 3: see GetPossibleMoves()
-	// Note 4: see SetAndApplyAction() 
-	// Note 4: see getOppositeMove()
-
-	// Class/Functions of use:
-
-	//	Class			Function			Description
-	//	TicTacToeNode	getGameState()		Will return the GameState for the current Node
-	//	TicTacToeNode	getOppositeMove()	Will return the opposite marker than the one provided.E.g. if X is provided, O will be returned.
-	//	GameState		CheckWin()			If the game state is a winning state, will return BOARD_SQUARE_STATE of the winner, otherwise ‘NONE’
-	//	GameState		GetPossibleMoves()	Will return a vector of possible moves from the game state. Each move is a std::pair<int, int> representing <Row, Col>
-	//  GameState		SetAndApplyAction() Will apply the provided GameAction to the game state
-	//	GameAction		GameAction()		A new GameAction can be created using the GameAction constructor, with parameters Row, Col, Marker
-	//	AIRandom_Global	GetRandom01()		Will return a float between 0 and 1
-	//	AIRandom_Global	GetRandomValue()	Will return a value between 0 and the value provided
-
 
 
 
